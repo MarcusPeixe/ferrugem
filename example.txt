@@ -1,0 +1,97 @@
+/*
+
+	LANG: FERRUGEM
+
+	PALAVRAS RESERVADAS:
+		TIPOS:
+			int
+			real
+			car
+			bool
+			texto
+			qualquer
+
+		VALOR:
+			nulo
+			verdadeiro
+			falso
+
+		OUTROS:
+			fn
+			tipo
+			se
+			senao
+			para
+			em
+			seja
+			const
+			implementa
+			este
+			importar
+			e
+			ou
+			nao
+			retorna
+			enquanto
+			quebra
+			continua
+			
+		TOKENS:
+			( )
+			[ ]
+			{ }
+			,
+			;
+			.
+			-> =>
+			:
+			+  -  *  /  % 
+			+= -= *= /= %=
+			++ --
+			<  >  <= >= == !=
+
+*/
+
+// "struct":
+tipo Pessoa {
+	nome: texto,
+	idade: int
+}
+
+implementa Pessoa {
+	fn cumprimentar() {
+		println(f"Olá! Eu sou {este.nome}");
+	}
+}
+
+seja pessoa = Pessoa {
+	nome: "markids",
+	idade: 21,
+}
+pessoa.cumprimentar();
+
+para i = 0; i < 10; i++ {
+
+}
+
+para x em array {
+
+}
+
+fn fibonacci(n: int) -> int {
+	se n <= 1 {
+		return n;
+	} senao {
+		return fibonacci(n - 1) + fibonacci(n - 2);
+	}
+
+	return se n <= 1 {
+		n
+	} senao {
+		fibonacci(n - 1) + fibonacci(n - 2)
+	}
+}
+
+seja x = 2;
+
+
