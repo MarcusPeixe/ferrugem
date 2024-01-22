@@ -6,10 +6,6 @@ mod source;
 fn main() -> Result<(), String> {
   let args: Vec<String> = std::env::args().collect();
 
-  // let (term_width, term_height) = termion::terminal_size().unwrap();
-  // println!("Size: {}x{}", term_width, term_height);
-  println!("\n");
-
   // Read command line arguments
   let name = args.get(1)
     .expect("Error: expected source file name as first argument");
@@ -26,13 +22,13 @@ fn main() -> Result<(), String> {
   // Tokenize
   let tokens = match lexer::tokenize(&source) {
     Ok(tokens) => tokens,
-    Err(error) => return error.return_in_main(),
+    Err(error) => return Err(error.to_string()),
   };
 
   // Parse
   let parsed = match parser::parse(&tokens) {
     Ok(tokens) => tokens,
-    Err(error) => return error.return_in_main(),
+    Err(error) => return Err(error.to_string()),
   };
 
   // Print result

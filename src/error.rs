@@ -14,17 +14,11 @@ impl<'t> Error<'t> {
     Self { message, span: Some(span) }
   }
 
-  // pub fn print(&self) {
-  //   if let Some(span) = self.span {
-  //     span.print();
-  //   }
-  //   eprintln!("Error: {}", self.message);
-  // }
-
-  pub fn return_in_main(&self) -> Result<(), String> {
+  // TODO: implement correct traits for this
+  pub fn to_string(&self) -> String {
     if let Some(span) = self.span {
       span.print();
     }
-    Err(self.message.clone())
+    self.message.clone()
   }
 }
