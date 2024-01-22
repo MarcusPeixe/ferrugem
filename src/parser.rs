@@ -5,12 +5,12 @@ type ParseResult<'t> = Result<f64, error::Error<'t>>;
 
 fn parse_value<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
   match tokens.peek() {
-    Some((text, span)) => {
+    Some((text, &span)) => {
       let value = match text.parse::<f64>() {
         Ok(value) => Ok(value),
         Err(_) => Err(error::Error::new_span(
           format!("Expected number, found '{}'", text),
-          *span,
+          span,
         )),
       };
       tokens.next();
