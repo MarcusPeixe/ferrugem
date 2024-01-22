@@ -1,62 +1,62 @@
 use crate::lexer;
+use crate::error;
 
-fn peek<'t, T>(tokens: &mut std::iter::Peekable<T>) -> Option<&'t str>
-where
-  T: Iterator<Item = &'t lexer::Token<'t>>
-{
-  tokens.peek().and_then(|t| Some(t.text))
-}
+type ParseResult<'t> = Result<f64, error::Error<'t>>;
 
-fn parse_value<'t, T>(tokens: &mut std::iter::Peekable<T>) -> Result<f64, String>
-where
-  T: Iterator<Item = &'t lexer::Token<'t>>
-{
-  match peek(tokens) {
-    Some(text) => {
-      tokens.next();
-      match text.parse::<f64>() {
+fn parse_value<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
+  match tokens.peek() {
+    Some((text, span)) => {
+      let value = match text.parse::<f64>() {
         Ok(value) => Ok(value),
-        Err(_) => Err(format!("Expected number, found '{}'", text)),
-      }
+        Err(_) => Err(error::Error::new_span(
+          format!("Expected number, found '{}'", text),
+          *span,
+        )),
+      };
+      tokens.next();
+      value
     }
-    None => Err(format!("Expected number, found end of input")),
+    None => Err(error::Error::new(
+      format!("Expected number, found end of input"),
+    )),
   }
 }
 
-fn parse_parens<'t, T>(tokens: &mut std::iter::Peekable<T>) -> Result<f64, String>
-where
-  T: Iterator<Item = &'t lexer::Token<'t>>
-{
-  match peek(tokens) {
-    Some("(") => {
+fn parse_parens<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
+  match tokens.peek() {
+    Some(("(", _)) => {
       tokens.next();
       let result = parse_sum(tokens)?;
-      match peek(tokens) {
-        Some(")") => {
+      match tokens.peek() {
+        Some((")", _)) => {
           tokens.next();
           Ok(result)
         }
-        Some(text) => Err(format!("Expected ')', found '{}'", text)),
-        None => Err(format!("Expected ')', found end of input")),
+        Some((text, &span)) => Err(error::Error::new_span(
+          format!("Expected ')', found '{}'", text),
+          span,
+        )),
+        None => Err(error::Error::new(
+          format!("Expected ')', found end of input")
+        )),
       }
     }
     Some(_) => parse_value(tokens),
-    None => Err(format!("Expected number or '(', found end of input")),
+    None => Err(error::Error::new(
+      format!("Expected number or '(', found end of input")
+    )),
   }
 }
 
-fn parse_product<'t, T>(tokens: &mut std::iter::Peekable<T>) -> Result<f64, String>
-where
-  T: Iterator<Item = &'t lexer::Token<'t>>
-{
+fn parse_product<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
   let mut result = parse_parens(tokens)?;
   loop {
-    match peek(tokens) {
-      Some("*") => {
+    match tokens.peek() {
+      Some(("*", _)) => {
         tokens.next();
         result *= &parse_parens(tokens)?;
       }
-      Some("/") => {
+      Some(("/", _)) => {
         tokens.next();
         result /= &parse_parens(tokens)?;
       }
@@ -66,18 +66,15 @@ where
   Ok(result)
 }
 
-fn parse_sum<'t, T>(tokens: &mut std::iter::Peekable<T>) -> Result<f64, String>
-where
-  T: Iterator<Item = &'t lexer::Token<'t>>
-{
+fn parse_sum<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
   let mut result = parse_product(tokens)?;
   loop {
-    match peek(tokens) {
-      Some("+") => {
+    match tokens.peek() {
+      Some(("+", _)) => {
         tokens.next();
         result += &parse_product(tokens)?;
       }
-      Some("-") => {
+      Some(("-", _)) => {
         tokens.next();
         result -= &parse_product(tokens)?;
       }
@@ -87,8 +84,8 @@ where
   Ok(result)
 }
 
-pub fn parse(tokens: &Vec<lexer::Token>) -> Result<f64, String> {
-  let mut iter = tokens.iter().peekable();
+pub fn parse<'t>(tokens: &'t lexer::Tokens) -> ParseResult<'t> {
+  let mut iter = tokens.iter();
   
   // Parse here!
   let result = parse_sum(&mut iter)?;
@@ -97,7 +94,11 @@ pub fn parse(tokens: &Vec<lexer::Token>) -> Result<f64, String> {
     Ok(result)
   }
   else {
+    let (text, &span) = iter.peek().unwrap();
     // TODO: Create a proper error type
-    Err(format!("Unexpected trailing token '{}'", iter.peek().unwrap().text))
+    Err(error::Error::new_span(
+      format!("Unexpected trailing token '{}'", text),
+      span,
+    ))
   }
 }
