@@ -8,16 +8,18 @@ fn parse_value<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
     Some((text, &span)) => {
       let value = match text.parse::<f64>() {
         Ok(value) => Ok(value),
-        Err(_) => Err(error::Error::new_span(
+        Err(_) => Err(error::Error::new(
           format!("Expected number, found '{}'", text),
+          tokens.tokens,
           span,
         )),
       };
       tokens.next();
       value
     }
-    None => Err(error::Error::new(
+    None => Err(error::Error::new_end(
       format!("Expected number, found end of input"),
+      tokens.tokens,
     )),
   }
 }
@@ -32,18 +34,21 @@ fn parse_parens<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
           tokens.next();
           Ok(result)
         }
-        Some((text, &span)) => Err(error::Error::new_span(
+        Some((text, &span)) => Err(error::Error::new(
           format!("Expected ')', found '{}'", text),
+          tokens.tokens,
           span,
         )),
-        None => Err(error::Error::new(
-          format!("Expected ')', found end of input")
+        None => Err(error::Error::new_end(
+          format!("Expected ')', found end of input"),
+          tokens.tokens,
         )),
       }
     }
     Some(_) => parse_value(tokens),
-    None => Err(error::Error::new(
-      format!("Expected number or '(', found end of input")
+    None => Err(error::Error::new_end(
+      format!("Expected number or '(', found end of input"),
+      tokens.tokens,
     )),
   }
 }
@@ -96,8 +101,9 @@ pub fn parse<'t>(tokens: &'t lexer::Tokens) -> ParseResult<'t> {
   else {
     let (text, &span) = iter.peek().unwrap();
     // TODO: Create a proper error type
-    Err(error::Error::new_span(
+    Err(error::Error::new(
       format!("Unexpected trailing token '{}'", text),
+      tokens,
       span,
     ))
   }

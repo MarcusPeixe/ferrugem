@@ -18,31 +18,30 @@ fn next_token(input: &str) -> Option<(regex::Match, usize)> {
   Some((token, whole.end()))
 }
 
-type TokenizeResult<'t> = Result<Tokens<'t>, error::Error<'t>>;
-
-pub fn tokenize<'t>(input: &'t source::Source) -> TokenizeResult<'t> {
+pub fn tokenize<'t>(input: &'t source::Source) -> Tokens<'t> {
   let text = input.text.as_str();
 
   let mut position: usize = 0;
   let mut tokens = Vec::new();
 
   while let Some((token, length)) = next_token(&text[position..]) {
-    tokens.push(Token::from(&token, &input, position));
+    tokens.push(Token::from(&token, position));
     position += length;
   }
 
-  if text[position..].trim().is_empty() {
-    Ok(Tokens { source: input, tokens })
-  } else {
-    Err(error::Error::new_span(
-      format!("Unexpected characters"),
+  let tokens = Tokens { source: input, tokens };
+  if !text[position..].trim().is_empty() {
+    let error = error::Error::new(
+      format!("Unrecognized trailing characters"),
+      &tokens,
       Span {
-        source: &input,
         start: position,
         end: input.text.len(),
       },
-    ))
+    );
+    panic!("{error:?}");
   }
+  tokens
 }
 
 pub struct Tokens<'t> {
@@ -58,11 +57,11 @@ impl<'t> Tokens<'t> {
 
 #[derive(Clone, Copy)]
 pub struct TokensIter<'t> {
-  tokens: &'t Tokens<'t>,
-  index: usize,
+  pub tokens: &'t Tokens<'t>,
+  pub index: usize,
 }
 
-type IterItem<'t> = (&'t str, &'t Span<'t>);
+type IterItem<'t> = (&'t str, &'t Span);
 
 impl<'t> TokensIter<'t> {
   pub fn new(tokens: &'t Tokens<'t>) -> Self {
@@ -88,44 +87,59 @@ impl<'t> Iterator for TokensIter<'t> {
 }
 
 #[derive(Clone, Copy)]
-pub struct Span<'t> {
-  pub source: &'t source::Source,
+pub struct Span {
   pub start: usize,
   pub end: usize,
 }
 
-impl<'t> Span<'t> {
+impl Span {
   // TODO: Improve span printing
-  pub fn print(&self) {
-    eprintln!(
-      "{}\x1B[31m{}\x1B[39m{}",
-      &self.source.text[..self.start],
-      &self.source.text[self.start..self.end],
-      &self.source.text[self.end..],
-    );
+  pub fn print<'t>(
+    &self, f: &mut std::fmt::Formatter<'_>, tokens: &'t Tokens<'t>
+  ) -> std::fmt::Result
+  {
+    let line_start = tokens.source.get_line(self.start);
+    let line_end = tokens.source.get_line(self.end);
+    let offset_start = self.start -  tokens.source.lines[line_start];
+    let offset_end = self.end - tokens.source.lines[line_end];
+
+    for i in line_start..=line_end {
+      let line = tokens.source.get_line_slice(i).trim_end();
+      let start = if i == line_start { offset_start } else { 0 };
+      let end = if i == line_end { offset_end } else { line.len() };
+
+      writeln!(
+        f, " {:3} |  {}\x1B[1;31m{}\x1B[m{}",
+        i + 1, &line[..start], &line[start..end], &line[end..]
+      )?;
+      writeln!(
+        f, "     |  {}\x1B[1;31m{}\x1B[m",
+        " ".repeat(start),
+        "^".repeat(std::cmp::max(end - start, 1)),
+      )?;
+    }
+
+    Ok(())
   }
 }
 
 pub struct Token<'t> {
-  pub span: Span<'t>,
+  pub text: &'t str,
+  pub span: Span,
 }
 
 impl<'t> Token<'t> {
-  pub fn from(m: &regex::Match<'t>, src: &'t source::Source, pos: usize) -> Self {
+  pub fn from(m: &regex::Match<'t>, pos: usize) -> Self {
     Self {
+      text: m.as_str(),
       span: Span {
-        source: src,
         start: pos + m.start(),
         end: pos + m.end(),
       },
     }
   }
 
-  pub fn get_text(&self) -> &str {
-    &self.span.source.text[self.span.start..self.span.end]
-  }
-
-  pub fn tuple(&self) -> (&str, &Span<'t>) {
-    (self.get_text(), &self.span)
+  pub fn tuple(&self) -> (&str, &Span) {
+    (self.text, &self.span)
   }
 }
