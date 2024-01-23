@@ -3,37 +3,28 @@ mod lexer;
 mod parser;
 mod source;
 
-fn main() -> Result<(), String> {
+fn main() {
   let args: Vec<String> = std::env::args().collect();
+  println!("\n\nParser:\n\n");
 
   // Read command line arguments
-  let name = args.get(1)
+  let file_name = args.get(1)
     .expect("Error: expected source file name as first argument");
   
   // Read source code
-  let code = match std::fs::read_to_string(name) {
-    Ok(code) => code,
-    Err(error) => return Err(error.to_string()),
-  };
+  let code = std::fs::read_to_string(file_name)
+    .expect("Error: could not read source file");
 
   // Construct source object
   let source = source::Source::new(code);
 
   // Tokenize
-  let tokens = match lexer::tokenize(&source) {
-    Ok(tokens) => tokens,
-    Err(error) => return Err(error.to_string()),
-  };
-
+  let tokens = lexer::tokenize(&source);
+  
   // Parse
-  let parsed = match parser::parse(&tokens) {
-    Ok(tokens) => tokens,
-    Err(error) => return Err(error.to_string()),
-  };
+  let parsed = parser::parse(&tokens).unwrap();
 
   // Print result
-  println!("Parsed expression: {:.2}", parsed);
-
-  Ok(())
+  println!("Parsed expression successfully: {parsed:.2}\n\n");
 }
 
