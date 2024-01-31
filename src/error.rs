@@ -12,19 +12,11 @@ impl<'t> Error<'t> {
   ) -> Self {
     Self { message, tokens, span }
   }
-
-  pub fn new_end(
-    message: String, tokens: &'t lexer::Tokens<'t>
-  ) -> Self {
-    let len = tokens.source.text.len();
-    Self { message, tokens, span: lexer::Span { start: len, end: len }}
-  }
 }
 
 impl<'t> std::fmt::Debug for Error<'t> {
-  // TODO: implement correct traits for this
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-    writeln!(f, "\n\x1B[31mCompilation error:\x1B[m\n")?;
+    writeln!(f, "\n\n  \x1B[31mParsing error:\x1B[m\n")?;
     self.span.print(f, self.tokens)?;
     writeln!(f, "     :  \x1B[31m{}\x1B[m", self.message)
   }
