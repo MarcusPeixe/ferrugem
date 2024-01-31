@@ -4,64 +4,49 @@ use crate::error;
 type ParseResult<'t> = Result<f64, error::Error<'t>>;
 
 fn parse_value<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
-  match tokens.peek() {
-    Some((text, &span)) => {
-      let value = match text.parse::<f64>() {
-        Ok(value) => Ok(value),
-        Err(_) => Err(error::Error::new(
-          format!("Expected number, found '{}'", text),
-          tokens.tokens,
-          span,
-        )),
-      };
+  match tokens.peek().ttype {
+    lexer::TokenType::Number(value) => {
       tokens.next();
-      value
+      Ok(value)
     }
-    None => Err(error::Error::new_end(
-      format!("Expected number, found end of input"),
+    _ => Err(error::Error::new(
+      format!("Expected number or '(', found {:?}", tokens.peek()),
       tokens.tokens,
+      tokens.peek().span,
     )),
   }
 }
 
 fn parse_parens<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
-  match tokens.peek() {
-    Some(("(", _)) => {
+  match tokens.peek().ttype {
+    lexer::TokenType::LParen => {
       tokens.next();
       let result = parse_sum(tokens)?;
-      match tokens.peek() {
-        Some((")", _)) => {
+      match tokens.peek().ttype {
+        lexer::TokenType::RParen => {
           tokens.next();
           Ok(result)
         }
-        Some((text, &span)) => Err(error::Error::new(
-          format!("Expected ')', found '{}'", text),
+        _ => Err(error::Error::new(
+          format!("Expected ')', found '{:?}'", tokens.peek()),
           tokens.tokens,
-          span,
-        )),
-        None => Err(error::Error::new_end(
-          format!("Expected ')', found end of input"),
-          tokens.tokens,
+          tokens.peek().span,
         )),
       }
     }
-    Some(_) => parse_value(tokens),
-    None => Err(error::Error::new_end(
-      format!("Expected number or '(', found end of input"),
-      tokens.tokens,
-    )),
+    _ => parse_value(tokens),
   }
 }
 
 fn parse_product<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
   let mut result = parse_parens(tokens)?;
   loop {
-    match tokens.peek() {
-      Some(("*", _)) => {
+    match tokens.peek().ttype {
+      lexer::TokenType::Mul => {
         tokens.next();
         result *= &parse_parens(tokens)?;
       }
-      Some(("/", _)) => {
+      lexer::TokenType::Div => {
         tokens.next();
         result /= &parse_parens(tokens)?;
       }
@@ -74,12 +59,12 @@ fn parse_product<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
 fn parse_sum<'t>(tokens: &mut lexer::TokensIter<'t>) -> ParseResult<'t> {
   let mut result = parse_product(tokens)?;
   loop {
-    match tokens.peek() {
-      Some(("+", _)) => {
+    match tokens.peek().ttype {
+      lexer::TokenType::Add => {
         tokens.next();
         result += &parse_product(tokens)?;
       }
-      Some(("-", _)) => {
+      lexer::TokenType::Sub => {
         tokens.next();
         result -= &parse_product(tokens)?;
       }
@@ -95,16 +80,15 @@ pub fn parse<'t>(tokens: &'t lexer::Tokens) -> ParseResult<'t> {
   // Parse here!
   let result = parse_sum(&mut iter)?;
 
-  if iter.peek().is_none() {
-    Ok(result)
-  }
-  else {
-    let (text, &span) = iter.peek().unwrap();
-    // TODO: Create a proper error type
-    Err(error::Error::new(
-      format!("Unexpected trailing token '{}'", text),
+  match iter.peek().ttype {
+    lexer::TokenType::EOF => Ok(result),
+    _ => Err(error::Error::new(
+      format!(
+        "Expected end of input, '+', '-', '*', or '/', found {:?}",
+        iter.peek()
+      ),
       tokens,
-      span,
-    ))
+      iter.peek().span,
+    )),
   }
 }
